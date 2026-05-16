@@ -18,30 +18,48 @@ ChartJS.register(
   Legend,
 );
 
-export const PerformanceChart = ({ data }) => {
+export const PerformanceChart = ({ data = [] }) => {
+  if (!data.length) return <p>Loading...</p>;
+
   const chartData = {
-    labels: data.map((d) => d.label),
+    labels: data.map((d) => d.group),
     datasets: [
       {
-        label: "Response Time (ms)",
-        data: data.map((d) => d.time),
-        backgroundColor: "rgba(75, 192, 192, 0.5)",
+        label: "REST Response Time (ms)",
+        data: data.map((d) => d.restTime),
+        backgroundColor: "#4A90E2",
       },
       {
-        label: "Data Size (KB)",
-        data: data.map((d) => d.size),
-        backgroundColor: "rgba(153, 102, 255, 0.5)",
+        label: "GraphQL Response Time (ms)",
+        data: data.map((d) => d.gqlTime),
+        backgroundColor: "#7ED957",
+      },
+      {
+        label: "REST Data Size (KB)",
+        data: data.map((d) => d.restSize),
+        backgroundColor: "#1F4E79",
+      },
+      {
+        label: "GraphQL Data Size (KB)",
+        data: data.map((d) => d.gqlSize),
+        backgroundColor: "#2E7D32",
       },
     ],
   };
 
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: { position: "top" },
-      title: { display: true, text: "API Performance Comparison" },
-    },
-  };
-
-  return <Bar data={chartData} options={options} />;
+  return (
+    <Bar
+      data={chartData}
+      options={{
+        responsive: true,
+        plugins: {
+          legend: { position: "top" },
+          title: {
+            display: true,
+            text: "REST vs GraphQL Performance",
+          },
+        },
+      }}
+    />
+  );
 };

@@ -2,24 +2,37 @@ import axios from "axios";
 
 const BASE_URL = "https://localhost:7074/api";
 
-export const getProductsREST = async () => {
-  const start = performance.now();
-  const response = await axios.get(`${BASE_URL}/products`);
-  const end = performance.now();
+const measureRequest = async (requestFn, iterations = 10) => {
+  let totalTime = 0;
+  let totalSize = 0;
+  let latestData = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    const response = await requestFn();
+    const end = performance.now();
+
+    latestData = response.data;
+    totalTime += end - start;
+    totalSize +=
+      new TextEncoder().encode(JSON.stringify(response.data)).length / 1024;
+  }
+
   return {
-    data: response.data,
-    time: end - start, // in ms
-    size: new TextEncoder().encode(JSON.stringify(response.data)).length / 1024, // in KB
+    data: latestData,
+    avgTime: totalTime / iterations,
+    avgSize: totalSize / iterations,
   };
 };
 
-export const getCategoriesREST = async () => {
-  const start = performance.now();
-  const response = await axios.get(`${BASE_URL}/categories`);
-  const end = performance.now();
-  return {
-    data: response.data,
-    time: end - start,
-    size: new TextEncoder().encode(JSON.stringify(response.data)).length / 1024,
-  };
+export const getProductsREST = async (multiplier = 1) => {
+  return measureRequest(() =>
+    axios.get(`${BASE_URL}/products?multiplier=${multiplier}`),
+  );
+};
+
+export const getCategoriesREST = async (multiplier = 1) => {
+  return measureRequest(() =>
+    axios.get(`${BASE_URL}/categories?multiplier=${multiplier}`),
+  );
 };

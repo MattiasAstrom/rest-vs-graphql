@@ -2,10 +2,33 @@ import { request, gql } from "graphql-request";
 
 const GRAPHQL_URL = "https://localhost:7074/graphql";
 
-export const getProductsGraphQL = async () => {
+const measureGraphQL = async (query, key, variables, iterations = 10) => {
+  let totalTime = 0;
+  let totalSize = 0;
+  let latestData = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    const data = await request(GRAPHQL_URL, query, variables);
+    const end = performance.now();
+
+    latestData = data[key];
+    totalTime += end - start;
+    totalSize +=
+      new TextEncoder().encode(JSON.stringify(data[key])).length / 1024;
+  }
+
+  return {
+    data: latestData,
+    avgTime: totalTime / iterations,
+    avgSize: totalSize / iterations,
+  };
+};
+
+export const getProductsGraphQL = async (multiplier = 1) => {
   const query = gql`
-    query {
-      products {
+    query ($multiplier: Int!) {
+      products(multiplier: $multiplier) {
         id
         name
         price
@@ -15,20 +38,14 @@ export const getProductsGraphQL = async () => {
       }
     }
   `;
-  const start = performance.now();
-  const data = await request(GRAPHQL_URL, query);
-  const end = performance.now();
-  return {
-    data: data.products,
-    time: end - start,
-    size: new TextEncoder().encode(JSON.stringify(data.products)).length / 1024,
-  };
+
+  return measureGraphQL(query, "products", { multiplier });
 };
 
-export const getCategoriesGraphQL = async () => {
+export const getCategoriesGraphQL = async (multiplier = 1) => {
   const query = gql`
-    query {
-      categories {
+    query ($multiplier: Int!) {
+      categories(multiplier: $multiplier) {
         id
         name
         products {
@@ -37,13 +54,6 @@ export const getCategoriesGraphQL = async () => {
       }
     }
   `;
-  const start = performance.now();
-  const data = await request(GRAPHQL_URL, query);
-  const end = performance.now();
-  return {
-    data: data.categories,
-    time: end - start,
-    size:
-      new TextEncoder().encode(JSON.stringify(data.categories)).length / 1024,
-  };
+
+  return measureGraphQL(query, "categories", { multiplier });
 };

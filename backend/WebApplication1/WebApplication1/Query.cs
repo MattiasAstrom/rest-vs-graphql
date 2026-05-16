@@ -1,9 +1,6 @@
-﻿using HotChocolate;
-using HotChocolate.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.DTOs;
-using WebApplication1.Models;
 
 namespace WebApplication1
 {
@@ -11,11 +8,11 @@ namespace WebApplication1
     {
         [UseFiltering]
         [UseSorting]
-        public async Task<List<ProductDto>> GetProducts([Service] IDbContextFactory<ApiDbContext> factory)
+        public async Task<List<ProductDto>> GetProducts(int multiplier,[Service] IDbContextFactory<ApiDbContext> factory)
         {
             await using var context = factory.CreateDbContext();
 
-            return await context.Products
+            var baseProducts = await context.Products
                 .Include(p => p.Category)
                 .Select(p => new ProductDto
                 {
@@ -29,15 +26,24 @@ namespace WebApplication1
                     }
                 })
                 .ToListAsync();
+
+            var result = new List<ProductDto>();
+
+            for (int i = 0; i < multiplier; i++)
+            {
+                result.AddRange(baseProducts);
+            }
+
+            return result;
         }
 
         [UseFiltering]
         [UseSorting]
-        public async Task<List<CategoryDto>> GetCategories([Service] IDbContextFactory<ApiDbContext> factory)
+        public async Task<List<CategoryDto>> GetCategories(int multiplier, [Service] IDbContextFactory<ApiDbContext> factory)
         {
             await using var context = factory.CreateDbContext();
 
-            return await context.Categories
+            var baseCategories = await context.Categories
                 .Include(c => c.Products)
                 .Select(c => new CategoryDto
                 {
@@ -51,6 +57,15 @@ namespace WebApplication1
                     }).ToList()
                 })
                 .ToListAsync();
+
+            var result = new List<CategoryDto>();
+
+            for (int i = 0; i < multiplier; i++)
+            {
+                result.AddRange(baseCategories);
+            }
+
+            return result;
         }
     }
 }

@@ -15,11 +15,11 @@ namespace WebApplication1.Controllers
         public CategoriesController(IDbContextFactory<ApiDbContext> factory) => _factory = factory;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
+        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories([FromQuery] int multiplier = 1)
         {
             await using var context = _factory.CreateDbContext();
 
-            var categories = await context.Categories
+            var baseCategories = await context.Categories
                 .Include(c => c.Products)
                 .Select(c => new CategoryDto
                 {
@@ -31,9 +31,17 @@ namespace WebApplication1.Controllers
                         Name = p.Name,
                         Price = p.Price
                     }).ToList()
-                }).ToListAsync();
+                })
+                .ToListAsync();
 
-            return Ok(categories);
+            var result = new List<CategoryDto>();
+
+            for (int i = 0; i < multiplier; i++)
+            {
+                result.AddRange(baseCategories);
+            }
+
+            return Ok(result);
         }
     }
 }
