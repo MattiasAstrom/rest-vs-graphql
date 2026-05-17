@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { getProductsREST, getCategoriesREST } from "./services/restService";
-import {
-  getProductsGraphQL,
-  getCategoriesGraphQL,
-} from "./services/graphqlService";
+import { getProductsREST } from "./services/restService";
+import { getProductsGraphQL } from "./services/graphqlService";
 
 const Panel = ({ title, children, footer }) => (
   <div
@@ -22,7 +19,7 @@ const Panel = ({ title, children, footer }) => (
     {/* MAIN CONTENT */}
     <div style={{ flex: 1 }}>{children}</div>
 
-    {/* FOOTER ALWAYS BOTTOM */}
+    {/* FOOTER */}
     {footer && (
       <div style={{ marginTop: "12px" }}>
         <div style={{ fontSize: "12px", marginBottom: "6px", opacity: 0.7 }}>
@@ -44,11 +41,10 @@ const Code = ({ children }) => (
       overflowX: "auto",
       whiteSpace: "pre",
       lineHeight: "1.4",
-
-      // 🔥 FIX ALIGNMENT ISSUE
       textAlign: "left",
       display: "block",
       unicodeBidi: "plaintext",
+      margin: 0,
     }}
   >
     {children}
@@ -74,16 +70,31 @@ const Json = ({ data }) => (
 );
 
 export default function ReportPage() {
-  const [restCategories, setRestCategories] = useState(null);
-  const [gqlCategories, setGqlCategories] = useState(null);
+  const [restProducts, setRestProducts] = useState([]);
+  const [gqlProducts, setGqlProducts] = useState([]);
 
   useEffect(() => {
     const load = async () => {
-      const rc = await getCategoriesREST();
-      const gc = await getCategoriesGraphQL();
+      try {
+        const rp = await getProductsREST();
+        const gp = await getProductsGraphQL();
 
-      setRestCategories(rc.data);
-      setGqlCategories(gc.data);
+        console.log("REST RESPONSE", rp);
+        console.log("GRAPHQL RESPONSE", gp);
+
+        // REST
+        setRestProducts(rp.data || []);
+
+        // GRAPHQL
+        // {
+        //   avgSize,
+        //   avgTime,
+        //   data: [...]
+        // }
+        setGqlProducts(gp.data || []);
+      } catch (err) {
+        console.error(err);
+      }
     };
 
     load();
@@ -98,6 +109,60 @@ export default function ReportPage() {
         color: "black",
       }}
     >
+      <h2 style={{ marginTop: "40px" }}>0. Mätlogik (Performance Layer)</h2>
+
+      <div style={{ display: "flex" }}>
+        <Panel title="REST Measurement Function">
+          <Code>{`const measureRequest = async (requestFn, iterations = 10) => {
+  let totalTime = 0;
+  let totalSize = 0;
+  let latestData = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    const response = await requestFn();
+    const end = performance.now();
+
+    latestData = response.data;
+    totalTime += end - start;
+    totalSize +=
+      new TextEncoder().encode(JSON.stringify(response.data)).length / 1024;
+  }
+
+  return {
+    data: latestData,
+    avgTime: totalTime / iterations,
+    avgSize: totalSize / iterations,
+  };
+};`}</Code>
+        </Panel>
+
+        <Panel title="GraphQL Measurement Function">
+          <Code>{`const measureGraphQL = async (query, key, variables, iterations = 10) => {
+  let totalTime = 0;
+  let totalSize = 0;
+  let latestData = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    const data = await request(GRAPHQL_URL, query, variables);
+    const end = performance.now();
+
+    latestData = data[key];
+    totalTime += end - start;
+    totalSize +=
+      new TextEncoder().encode(JSON.stringify(data[key])).length / 1024;
+  }
+
+  return {
+    data: latestData,
+    avgTime: totalTime / iterations,
+    avgSize: totalSize / iterations,
+  };
+};`}</Code>
+        </Panel>
+      </div>
+
       <h1>REST vs GraphQL – Pipeline Comparison</h1>
 
       {/* =========================================================
@@ -105,20 +170,20 @@ export default function ReportPage() {
       ========================================================= */}
       <h2>1. Frontend → Backend Request</h2>
 
-      <div style={{ display: "flex", gap: "-20px" }}>
+      <div style={{ display: "flex" }}>
         {/* REST */}
         <Panel
           title="REST Frontend Call (Axios)"
           footer={
             <Code>{`useEffect(() => {
-  getCategoriesREST().then(res => {
+  getProductsREST().then(res => {
     console.log(res.data);
   });
 }, []);`}</Code>
           }
         >
-          <Code>{`export const getCategoriesREST = () => {
-  return axios.get("/api/categories");
+          <Code>{`export const getProductsREST = () => {
+  return axios.get("/api/products");
 };`}</Code>
         </Panel>
 
@@ -127,19 +192,22 @@ export default function ReportPage() {
           title="GraphQL Frontend Call"
           footer={
             <Code>{`useEffect(() => {
-  getCategoriesGraphQL().then(res => {
-    console.log(res.categories);
+  getProductsGraphQL().then(res => {
+    console.log(res.data);
   });
 }, []);`}</Code>
           }
         >
-          <Code>{`export const getCategoriesGraphQL = () => {
+          <Code>{`export const getProductsGraphQL = () => {
   return request("/graphql", gql\`
     query {
-      categories {
+      products {
         id
         name
-        products { name }
+        price
+        category {
+          name
+        }
       }
     }
   \`);
@@ -152,46 +220,48 @@ export default function ReportPage() {
       ========================================================= */}
       <h2 style={{ marginTop: "40px" }}>2. Backend Implementation</h2>
 
-      <div style={{ display: "flex", gap: "-20px" }}>
+      <div style={{ display: "flex" }}>
+        {/* REST */}
         <Panel title="REST Controller">
           <Code>{`[HttpGet]
-public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
+public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
 {
-    var categories = await context.Categories
-        .Include(c => c.Products)
-        .Select(c => new CategoryDto {
-            Id = c.Id,
-            Name = c.Name,
-            Products = c.Products.Select(p => new ProductDto {
-                Id = p.Id,
-                Name = p.Name,
-                Price = p.Price
-            }).ToList()
+    var products = await context.Products
+        .Include(p => p.Category)
+        .Select(p => new ProductDto {
+            Id = p.Id,
+            Name = p.Name,
+            Price = p.Price,
+            Category = new CategoryDto {
+                Id = p.Category.Id,
+                Name = p.Category.Name
+            }
         })
         .ToListAsync();
 
-    return Ok(categories);
+    return Ok(products);
 }`}</Code>
         </Panel>
 
+        {/* GRAPHQL */}
         <Panel title="GraphQL Resolver">
-          <Code>{`public async Task<List<CategoryDto>> GetCategories(
+          <Code>{`public async Task<List<ProductDto>> GetProducts(
     [Service] IDbContextFactory<ApiDbContext> factory)
 {
-    var categories = await context.Categories
-        .Include(c => c.Products)
-        .Select(c => new CategoryDto {
-            Id = c.Id,
-            Name = c.Name,
-            Products = c.Products.Select(p => new ProductDto {
-                Id = p.Id,
-                Name = p.Name,
-                Price = p.Price
-            }).ToList()
+    var products = await context.Products
+        .Include(p => p.Category)
+        .Select(p => new ProductDto {
+            Id = p.Id,
+            Name = p.Name,
+            Price = p.Price,
+            Category = new CategoryDto {
+                Id = p.Category.Id,
+                Name = p.Category.Name
+            }
         })
         .ToListAsync();
 
-    return categories;
+    return products;
 }`}</Code>
         </Panel>
       </div>
@@ -199,15 +269,17 @@ public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
       {/* =========================================================
           3. RESPONSE STRUCTURE
       ========================================================= */}
-      <h2 style={{ marginTop: "40px" }}>3. Response Structure (Categories)</h2>
+      <h2 style={{ marginTop: "40px" }}>3. Response Structure (Products)</h2>
 
-      <div style={{ display: "flex", gap: "-20px" }}>
+      <div style={{ display: "flex" }}>
+        {/* REST */}
         <Panel title="REST Response">
-          <Json data={restCategories?.[0] || {}} />
+          <Json data={restProducts[0] || {}} />
         </Panel>
 
+        {/* GRAPHQL */}
         <Panel title="GraphQL Response">
-          <Json data={gqlCategories?.[0] || {}} />
+          <Json data={gqlProducts[0] || {}} />
         </Panel>
       </div>
     </div>
