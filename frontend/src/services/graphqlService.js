@@ -82,20 +82,29 @@ export const getItemsGraphQL = async ({
   fields,
   variables = {},
   iterations = 10,
+  multiplier = 1,
 }) => {
   const query = gql`
-    query(${Object.keys(variables)
-      .map((k) => `$${k}: ${variables[k].type}`)
-      .join(", ")}) {
-      ${type}(${filters}) {
+    query($multiplier: Int! ${
+      Object.keys(variables).length
+        ? "," +
+          Object.keys(variables)
+            .map((k) => `$${k}: ${variables[k].type}`)
+            .join(", ")
+        : ""
+    }) {
+      ${type}(multiplier: $multiplier ${filters ? `, ${filters}` : ""}) {
         ${fields}
       }
     }
   `;
 
-  const gqlVariables = Object.fromEntries(
-    Object.entries(variables).map(([k, v]) => [k, v.value]),
-  );
+  const gqlVariables = {
+    multiplier,
+    ...Object.fromEntries(
+      Object.entries(variables).map(([k, v]) => [k, v.value]),
+    ),
+  };
 
   return measureGraphQL(query, type, gqlVariables, iterations);
 };

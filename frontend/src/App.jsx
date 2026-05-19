@@ -4,6 +4,7 @@ import {
   getProductsGraphQL,
   getCategoriesGraphQL,
   getProductByNameGraphQL,
+  getItemsGraphQL,
 } from "./services/graphqlService";
 
 import { PerformanceChart } from "./components/PerformanceChart";
@@ -26,16 +27,16 @@ function App() {
       const laptopProduct = await getProductByNameGraphQL("Laptop", 1);
 
       // Unified data functions for easier charting.
-      const getItemsGraphQL = await getItemsGraphQL({
+      const itemsProducts = await getItemsGraphQL({
         type: "products",
         fields: `
-          id
-          name
-          price
-        `,
+    id
+    name
+    price
+  `,
       });
 
-      await getItemsGraphQL({
+      const itemsFiltered = await getItemsGraphQL({
         type: "products",
         filters: `where: { name: { eq: $name } }`,
         variables: {
@@ -45,18 +46,18 @@ function App() {
           },
         },
         fields: `
-          id
-          name
-          price
-        `,
+    id
+    name
+    price
+  `,
       });
 
-      await getItemsGraphQL({
+      const itemsCategories = await getItemsGraphQL({
         type: "categories",
         fields: `
-          id
-          name
-        `,
+    id
+    name
+  `,
       });
 
       return [
