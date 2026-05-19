@@ -57,3 +57,45 @@ export const getCategoriesGraphQL = async (multiplier = 1) => {
 
   return measureGraphQL(query, "categories", { multiplier });
 };
+
+export const getProductByNameGraphQL = async (name, multiplier = 1) => {
+  const query = gql`
+    query ($name: String!, $multiplier: Int!) {
+      products(multiplier: $multiplier, where: { name: { eq: $name } }) {
+        id
+        name
+        price
+        category {
+          name
+        }
+      }
+    }
+  `;
+
+  return measureGraphQL(query, "products", { name, multiplier });
+};
+
+// Unified function for flexible GraphQL queries, very un-readable but demonstrates advanced GraphQL features.
+export const getItemsGraphQL = async ({
+  type,
+  filters = "",
+  fields,
+  variables = {},
+  iterations = 10,
+}) => {
+  const query = gql`
+    query(${Object.keys(variables)
+      .map((k) => `$${k}: ${variables[k].type}`)
+      .join(", ")}) {
+      ${type}(${filters}) {
+        ${fields}
+      }
+    }
+  `;
+
+  const gqlVariables = Object.fromEntries(
+    Object.entries(variables).map(([k, v]) => [k, v.value]),
+  );
+
+  return measureGraphQL(query, type, gqlVariables, iterations);
+};

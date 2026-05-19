@@ -3,6 +3,7 @@ import { getProductsREST, getCategoriesREST } from "./services/restService";
 import {
   getProductsGraphQL,
   getCategoriesGraphQL,
+  getProductByNameGraphQL,
 } from "./services/graphqlService";
 
 import { PerformanceChart } from "./components/PerformanceChart";
@@ -20,6 +21,43 @@ function App() {
 
       const restCategories = await getCategoriesREST(size);
       const gqlCategories = await getCategoriesGraphQL(size);
+
+      // Specific query to test filtering and more complex GraphQL features.
+      const laptopProduct = await getProductByNameGraphQL("Laptop", 1);
+
+      // Unified data functions for easier charting.
+      const getItemsGraphQL = await getItemsGraphQL({
+        type: "products",
+        fields: `
+          id
+          name
+          price
+        `,
+      });
+
+      await getItemsGraphQL({
+        type: "products",
+        filters: `where: { name: { eq: $name } }`,
+        variables: {
+          name: {
+            type: "String!",
+            value: "Laptop",
+          },
+        },
+        fields: `
+          id
+          name
+          price
+        `,
+      });
+
+      await getItemsGraphQL({
+        type: "categories",
+        fields: `
+          id
+          name
+        `,
+      });
 
       return [
         {

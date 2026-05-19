@@ -6,7 +6,8 @@ import ReportPage from "./ReportPage.jsx";
 
 createRoot(document.getElementById("root")).render(
   <>
-    <ReportPage />
+    {/* <ReportPage /> */}
+    <App />
   </>,
 );
 
